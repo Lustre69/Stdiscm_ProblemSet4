@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package ocr;
+
+// Service definition for OCR processing
+service OCRService {
+    // Process a single image and return OCR result
+    rpc ProcessImage (ImageRequest) returns (ImageResponse);
+    
+    // Stream processing for multiple images
+    rpc ProcessImageStream (stream ImageRequest) returns (stream ImageResponse);
+}
+
+// Request message containing image data
+message ImageRequest {
+    string image_id = 1;      // Unique identifier for this image
+    bytes image_data = 2;     // Raw image bytes (PNG, JPEG, etc.)
+    string image_format = 3;  // Image format (png, jpg, jpeg)
+}
+
+// Response message containing OCR result
+message ImageResponse {
+    string image_id = 1;      // Same ID from request
+    string extracted_text = 2; // OCR extracted text
+    bool success = 3;          // Whether processing was successful
+    string error_message = 4;  // Error message if processing failed
+}
+

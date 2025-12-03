@@ -1,0 +1,45 @@
+# Build directories
+build/
+cmake-build-*/
+*.build/
+
+# Generated files
+*.pb.cc
+*.pb.h
+*.grpc.pb.cc
+*.grpc.pb.h
+proto/*.pb.*
+
+# Compiled binaries
+ocr_server
+ocr_client
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Qt generated files
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+*.qm
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Object files
+*.o
+*.obj
+
+# Libraries
+*.a
+*.lib
+
