@@ -1,201 +1,215 @@
 # Distributed OCR System
 
-A client-server distributed system for Optical Character Recognition (OCR) using Tesseract, gRPC, and Qt.
-
-## Overview
-
-This system implements a distributed OCR application where:
-- **Client**: Qt-based UI for uploading images and displaying OCR results in real-time
-- **Server**: Multithreaded gRPC server that processes images using Tesseract OCR
+A client-server distributed OCR (Optical Character Recognition) system built with gRPC, Qt, Tesseract, and OpenCV.
 
 ## Features
 
-### Client
-- Image upload interface with file selection
-- Real-time result display as OCR completes
-- Progress bar tracking processed images
-- Support for multiple simultaneous uploads
-- Automatic batch management (clears results when batch completes)
+### Client Application
+- Qt-based GUI for uploading images
+- Real-time display of OCR results as they arrive
+- Progress bar showing processing status
+- Support for batch processing
+- Automatic batch reset when processing completes
+- Configurable server address
+- Connection error handling
 
-### Server
-- Multithreaded processing pipeline
+### Server Application
+- Multi-threaded OCR processing pipeline
+- Continuous operation for handling multiple requests
+- Uses Tesseract OCR engine for text extraction
+- OpenCV for image preprocessing
 - gRPC-based communication
-- Concurrent image processing
-- Fault tolerance with connection handling
 
-## Prerequisites
+## Requirements
 
-### Required Libraries
-- **Qt6**: GUI framework
-- **gRPC & Protobuf**: Interprocess communication
-- **Tesseract OCR**: Text recognition engine
-- **Leptonica**: Image processing library (used by Tesseract)
-- **CMake**: Build system (version 3.15 or higher)
-- **C++17**: Compiler support
+### Dependencies
+- **CMake** (3.20 or higher)
+- **C++20** compatible compiler
+- **Qt6** (Core, Widgets)
+- **OpenCV** (for image processing)
+- **Tesseract OCR** (optional, falls back to mock OCR if not available)
+- **gRPC** and **Protocol Buffers**
+- **vcpkg** (recommended for Windows dependency management)
 
-### Installation (Ubuntu/Debian)
+### Windows Setup with vcpkg
 
-```bash
-# Install Qt6
-sudo apt-get install qt6-base-dev qt6-base-dev-tools
+1. Install vcpkg if you haven't already:
+   ```powershell
+   git clone https://github.com/Microsoft/vcpkg.git
+   cd vcpkg
+   .\bootstrap-vcpkg.bat
+   ```
 
-# Install gRPC and Protobuf
-sudo apt-get install libgrpc++-dev libprotobuf-dev protobuf-compiler
+2. Install required packages:
+   ```powershell
+   .\vcpkg install qt6 opencv tesseract grpc protobuf --triplet x64-windows
+   ```
 
-# Install Tesseract and Leptonica
-sudo apt-get install tesseract-ocr libtesseract-dev libleptonica-dev
-
-# Install CMake
-sudo apt-get install cmake
-```
-
-### Installation (macOS)
-
-```bash
-# Using Homebrew
-brew install qt6
-brew install grpc
-brew install protobuf
-brew install tesseract
-brew install leptonica
-brew install cmake
-```
-
-### Installation (Windows)
-
-1. Install Qt6 from https://www.qt.io/download
-2. Install vcpkg and use it to install:
-   - grpc
-   - protobuf
-   - tesseract
-   - leptonica
-3. Install CMake from https://cmake.org/download/
+3. Configure CMake with vcpkg toolchain:
+   ```powershell
+   cmake .. -DCMAKE_TOOLCHAIN_FILE=C:\path\to\vcpkg\scripts\buildsystems\vcpkg.cmake
+   ```
 
 ## Building
 
-1. Clone or download this repository
+### Generate gRPC Code
 
-2. Create a build directory:
+First, you need to generate the gRPC code from the proto file. The CMakeLists.txt should handle this automatically, but if you need to do it manually:
+
+```bash
+protoc --grpc_out=. --cpp_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` ocr_service.proto
+```
+
+### Build with CMake
+
 ```bash
 mkdir build
 cd build
-```
-
-3. Configure with CMake:
-```bash
-cmake ..
-```
-
-4. Build:
-```bash
-cmake --build .
+cmake .. -DCMAKE_TOOLCHAIN_FILE=C:\path\to\vcpkg\scripts\buildsystems\vcpkg.cmake
+cmake --build . --config Release
 ```
 
 ## Running
 
-### Starting the Server
+### Start the Server
 
-Run the server on the machine/VM where processing will occur:
+On the server machine/VM:
 
 ```bash
-./ocr_server [address] [num_workers]
+# Default: listen on 0.0.0.0:50051 with 4 worker threads
+./ocr_server
+
+# Custom address and worker threads
+./ocr_server 0.0.0.0:50051 8
 ```
 
-Arguments:
-- `address`: Server address (default: `0.0.0.0:50051`)
-- `num_workers`: Number of worker threads (default: 4)
+The server will continuously run and wait for client connections.
 
-Example:
-```bash
-./ocr_server 0.0.0.0:50051 4
-```
+### Start the Client
 
-### Starting the Client
-
-Run the client on a different machine:
+On the client machine:
 
 ```bash
+# Connect to localhost
 ./ocr_client
+
+# Connect to remote server
+./ocr_client 192.168.1.100:50051
 ```
 
-**Note**: You may need to modify the server address in `client/mainwindow.cpp` (line 164) to point to your server's IP address.
+Or use the GUI:
+1. Click "Configure Server" to set the server address
+2. Click "Upload Images" to select images
+3. Results will appear as they are processed
+4. Progress bar shows completion status
 
 ## Architecture
 
-### Client-Server Communication
-- Uses gRPC for efficient, type-safe communication
-- Supports streaming for multiple images
-- Automatic reconnection on connection failures
+### Communication Protocol
 
-### Multithreading
-- Server: Worker thread pool processes images concurrently
-- Client: Worker threads handle gRPC communication asynchronously
+The system uses gRPC with Protocol Buffers:
+- **ImageRequest**: Contains image data (bytes), filename, format, and request ID
+- **ImageResponse**: Contains OCR result, processing time, and status
 
-### Synchronization
-- Thread-safe queues for task distribution
-- Mutexes and condition variables for coordination
-- Atomic operations for state tracking
+### Server Architecture
 
-### GUI Implementation
-- Qt6 widgets for modern UI
-- Custom card widgets for result display
-- Real-time updates using Qt's signal-slot mechanism
+```
+gRPC Server Thread
+    ↓
+Request Handler (decodes image)
+    ↓
+Thread-Safe Queue
+    ↓
+Worker Thread Pool (4+ threads)
+    ├─ Worker 1: Preprocess → OCR → Return
+    ├─ Worker 2: Preprocess → OCR → Return
+    └─ Worker N: Preprocess → OCR → Return
+```
 
-### Fault Tolerance
-- Connection state monitoring
-- Automatic reconnection attempts
-- Error handling and user feedback
+### Client Architecture
 
-## Project Structure
+```
+Qt GUI Thread
+    ↓
+User Upload Action
+    ↓
+Worker Threads (one per image)
+    ├─ Worker 1: Send Request → Wait → Update UI
+    ├─ Worker 2: Send Request → Wait → Update UI
+    └─ Worker N: Send Request → Wait → Update UI
+```
+
+## Multithreading & Synchronization
+
+- **Thread-Safe Queue**: Bounded queue for task distribution
+- **Worker Thread Pool**: Multiple threads process images concurrently
+- **Atomic Counters**: Track progress without blocking
+- **Mutex Protection**: Thread-safe result storage
+- **Promise/Future**: Synchronize async processing with gRPC responses
+
+## Fault Tolerance
+
+### Client-Side
+- Connection timeout handling (60 seconds)
+- Error messages for failed requests
+- Server health check on startup
+- Graceful handling of server disconnection
+
+### Server-Side
+- Exception handling in worker threads
+- Graceful shutdown handling
+- Error responses for invalid images
+- Thread-safe queue prevents race conditions
+
+## File Structure
 
 ```
 .
-├── proto/
-│   └── ocr.proto           # gRPC service definition
-├── server/
-│   └── main.cpp            # Server implementation
-├── client/
-│   ├── main.cpp            # Client entry point
-│   ├── mainwindow.h/cpp    # Qt UI implementation
-│   └── ocr_client.h/cpp    # gRPC client wrapper
+├── client.cpp              # Qt client application
+├── server.cpp              # gRPC server application
+├── main.cpp                # Legacy local processor (for reference)
+├── ocr_service.proto       # gRPC service definition
+├── ThreadSafeQueue.hpp     # Thread-safe queue implementation
 ├── CMakeLists.txt          # Build configuration
 └── README.md               # This file
 ```
 
-## Usage
+## Testing
 
-1. Start the server on your processing machine
-2. Start the client on your local machine
-3. Click "Upload Images" to select image files
-4. Watch as results appear in real-time
-5. Progress bar shows completion status
-6. Upload additional images while processing continues
-
-## Notes for Development
-
-- The server should run on a machine with sufficient CPU for OCR processing
-- The client and server should be on different machines/VMs as specified
-- Modify server address in client code or add configuration file for flexibility
-- Consider adding authentication and encryption for production use
+1. Start the server on one machine/VM
+2. Start the client on another machine
+3. Upload multiple images
+4. Observe real-time result display
+5. Upload more images during processing (should adjust progress bar)
+6. Wait for 100% completion, then upload more (should clear and start new batch)
 
 ## Troubleshooting
 
-### Connection Issues
-- Ensure server is running before starting client
-- Check firewall settings for port 50051
-- Verify server address in client code matches server machine
+### Server won't start
+- Check if port 50051 is available
+- Verify gRPC dependencies are installed
+- Check firewall settings
 
-### Build Issues
-- Ensure all dependencies are installed
-- Check CMake version (3.15+)
-- Verify compiler supports C++17
+### Client can't connect
+- Verify server address is correct
+- Check network connectivity
+- Ensure server is running
+- Check firewall allows connections on port 50051
 
-### OCR Issues
-- Ensure Tesseract language data is installed
-- Check image format support (PNG, JPEG)
-- Verify image quality and text clarity
+### OCR not working
+- Ensure Tesseract is installed
+- Check Tesseract language data files are present
+- Verify OpenCV can load images
 
-## License
+### Build errors
+- Verify all dependencies are installed via vcpkg
+- Check CMake toolchain file path is correct
+- Ensure C++20 compiler is used
 
-This is an academic project. Please refer to your course guidelines.
+## Notes
+
+- The system is designed to run on different machines (client and server)
+- For testing on the same machine, use `localhost:50051` as server address
+- Tesseract language data files should be in the system path or Tesseract data directory
+- Image formats supported: PNG, JPG, JPEG
 

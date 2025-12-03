@@ -290,8 +290,9 @@ void MainWindow::onUploadButtonClicked() {
         return;
     }
 
-    // Check if we should start a new batch
-    if (progressBar_->value() >= 100 && !pendingImages_.empty()) {
+    // If previous batch is complete (progress at 100%), start a new batch
+    // so that new uploads are treated as a separate batch and old results are cleared.
+    if (progressBar_->value() >= 100) {
         startNewBatch();
     }
 

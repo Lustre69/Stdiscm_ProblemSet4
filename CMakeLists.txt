@@ -3,6 +3,7 @@ project(OCRDSystem)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
 
 # Find required packages
 find_package(Protobuf REQUIRED)
@@ -67,11 +68,13 @@ target_include_directories(ocr_server PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
     ${TESSERACT_INCLUDE_DIRS}
     ${LEPTONICA_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIRS}
 )
 
 target_link_libraries(ocr_server PRIVATE
     gRPC::grpc++
     protobuf::libprotobuf
+    ${OpenCV_LIBS}
     ${TESSERACT_LIBRARIES}
     ${LEPTONICA_LIBRARIES}
 )
@@ -94,12 +97,8 @@ set(CLIENT_SOURCES
     ${GRPC_HDRS}
 )
 
-qt6_wrap_cpp(CLIENT_MOC_SOURCES client/mainwindow.h)
-qt6_wrap_cpp(CLIENT_MOC_SOURCES client/ocr_client.h)
-
 add_executable(ocr_client
     ${CLIENT_SOURCES}
-    ${CLIENT_MOC_SOURCES}
 )
 
 target_include_directories(ocr_client PRIVATE
